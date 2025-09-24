@@ -3,6 +3,7 @@ import '../models/product.dart';
 import '../models/category.dart' as CategoryModel;
 import '../models/order.dart';
 import '../services/platform_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/product_card.dart';
 import '../widgets/order_summary.dart';
 
@@ -15,17 +16,32 @@ class OrderScreen extends StatefulWidget {
 
 class _OrderScreenState extends State<OrderScreen> {
   final PlatformService _platformService = PlatformService();
+  final SettingsService _settingsService = SettingsService();
 
   List<CategoryModel.Category> _categories = [];
   List<Product> _products = [];
   List<CartItem> _cartItems = [];
-  int _selectedCategoryId = -1; // -1은 전체 카테고리
+  int _selectedCategoryId = -1;
   bool _isLoading = true;
+  double _cardSize = 180.0;
+  double _cardAspectRatio = 1.2;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadSettings();
+  }
+
+  // 설정 불러오기
+  Future<void> _loadSettings() async {
+    final cardSize = await _settingsService.getCardSize();
+    final cardRatio = await _settingsService.getCardAspectRatio();
+
+    setState(() {
+      _cardSize = cardSize;
+      _cardAspectRatio = cardRatio;
+    });
   }
 
   // 데이터 로드
@@ -150,6 +166,90 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
+  // 상품 목록 위젯 (재사용 가능)
+  Widget _buildProductGrid() {
+    if (_filteredProducts.isEmpty) {
+      return const Center(
+        child: Text(
+          '등록된 상품이 없습니다',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: GridView.builder(
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: _cardSize,
+          childAspectRatio: _cardAspectRatio,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: _filteredProducts.length,
+        itemBuilder: (context, index) {
+          final product = _filteredProducts[index];
+          final quantity = _getCartQuantity(product);
+
+          return ProductCard(
+            product: product,
+            quantity: quantity,
+            onTap: () => _addToCart(product),
+            onDecrease: () => _removeFromCart(product),
+          );
+        },
+      ),
+    );
+  }
+
+  // 카테고리 탭 위젯 (재사용 가능)
+  Widget _buildCategoryTabs() {
+    if (_categories.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 50,
+      color: Colors.grey[100],
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ChoiceChip(
+                label: const Text('전체'),
+                selected: _selectedCategoryId == -1,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedCategoryId = -1;
+                    });
+                  }
+                },
+              ),
+            );
+          }
+
+          final category = _categories[index - 1];
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ChoiceChip(
+              label: Text(category.name),
+              selected: _selectedCategoryId == category.id,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedCategoryId = category.id!;
+                  });
+                }
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -159,6 +259,9 @@ class _OrderScreenState extends State<OrderScreen> {
         ),
       );
     }
+
+    // 화면 방향 확인
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,101 +273,81 @@ class _OrderScreenState extends State<OrderScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 카테고리 선택 탭
-          if (_categories.isNotEmpty)
-            Container(
-              height: 50,
-              color: Colors.grey[100],
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length + 1, // +1은 전체 카테고리용
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    // 전체 카테고리
-                    return Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ChoiceChip(
-                        label: const Text('전체'),
-                        selected: _selectedCategoryId == -1,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedCategoryId = -1;
-                            });
-                          }
-                        },
-                      ),
-                    );
-                  }
+      body: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+    );
+  }
 
-                  final category = _categories[index - 1];
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ChoiceChip(
-                      label: Text(category.name),
-                      selected: _selectedCategoryId == category.id,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            _selectedCategoryId = category.id!;
-                          });
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
+  // 세로 화면 레이아웃 (기존 방식)
+  Widget _buildPortraitLayout() {
+    return Column(
+      children: [
+        // 카테고리 선택 탭
+        _buildCategoryTabs(),
 
-          // 상품 그리드
-          Expanded(
-            child: _filteredProducts.isEmpty
-                ? const Center(
-              child: Text(
-                '등록된 상품이 없습니다',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            )
-                : Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,  // 한 줄에 2개
-                  childAspectRatio: 0.8,  // 원래대로 복원 (높이 조절 가능)
-                  crossAxisSpacing: 8,  // 원래대로 복원
-                  mainAxisSpacing: 8,   // 원래대로 복원
-                ),
-                itemCount: _filteredProducts.length,
-                itemBuilder: (context, index) {
-                  final product = _filteredProducts[index];
-                  final quantity = _getCartQuantity(product);
+        // 상품 그리드
+        Expanded(child: _buildProductGrid()),
 
-                  return ProductCard(
-                    product: product,
-                    quantity: quantity,
-                    onTap: () => _addToCart(product),
-                    onDecrease: () => _removeFromCart(product),
-                  );
-                },
-              ),
+        // 주문 요약 (하단 고정)
+        OrderSummary(
+          cartItems: _cartItems,
+          totalAmount: _totalAmount,
+          onConfirmOrder: _confirmOrder,
+          onClearCart: () {
+            setState(() {
+              _cartItems.clear();
+            });
+          },
+          onIncreaseQuantity: (cartItem) => _addToCart(cartItem.product),
+          onDecreaseQuantity: (cartItem) => _removeFromCart(cartItem.product),
+        ),
+      ],
+    );
+  }
+
+  // 가로 화면 레이아웃 (좌우 분할)
+  Widget _buildLandscapeLayout() {
+    return Row(
+      children: [
+        // 왼쪽: 상품 목록 (70% 차지)
+        Expanded(
+          flex: 7,
+          child: Column(
+            children: [
+              // 카테고리 선택 탭
+              _buildCategoryTabs(),
+
+              // 상품 그리드
+              Expanded(child: _buildProductGrid()),
+            ],
+          ),
+        ),
+
+        // 구분선
+        Container(
+          width: 1,
+          color: Colors.grey[300],
+        ),
+
+        // 오른쪽: 주문 요약 (30% 차지)
+        Expanded(
+          flex: 3,
+          child: Container(
+            color: Colors.grey[50],
+            child: OrderSummary(
+              cartItems: _cartItems,
+              totalAmount: _totalAmount,
+              onConfirmOrder: _confirmOrder,
+              onClearCart: () {
+                setState(() {
+                  _cartItems.clear();
+                });
+              },
+              onIncreaseQuantity: (cartItem) => _addToCart(cartItem.product),
+              onDecreaseQuantity: (cartItem) => _removeFromCart(cartItem.product),
             ),
           ),
-
-          // 주문 요약 (하단 고정)
-          OrderSummary(
-            cartItems: _cartItems,
-            totalAmount: _totalAmount,
-            onConfirmOrder: _confirmOrder,
-            onClearCart: () {
-              setState(() {
-                _cartItems.clear();
-              });
-            },
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

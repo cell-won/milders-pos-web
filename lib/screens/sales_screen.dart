@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/order.dart';
-import '../services/order_service.dart';
+import '../services/platform_service.dart';
 import '../widgets/sales_item.dart';
 
 class SalesScreen extends StatefulWidget {
@@ -14,7 +14,7 @@ class _SalesScreenState extends State<SalesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final OrderService _orderService = OrderService();
+  final PlatformService _platformService = PlatformService();
 
   List<Order> _orders = [];
   List<Map<String, dynamic>> _productStats = [];
@@ -44,15 +44,15 @@ class _SalesScreenState extends State<SalesScreen>
 
     try {
       // 모든 주문 조회
-      final orders = await _orderService.getAllOrders();
+      final orders = await _platformService.getAllOrders();
 
       // 오늘의 통계
-      final todayStats = await _orderService.getDailySalesStats(_selectedDate);
+      final todayStats = await _platformService.getDailySalesStats(_selectedDate);
 
       // 이번 달 상품별 통계
       DateTime startOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
       DateTime endOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
-      final productStats = await _orderService.getProductSalesStats(startOfMonth, endOfMonth);
+      final productStats = await _platformService.getProductSalesStats(startOfMonth, endOfMonth);
 
       setState(() {
         _orders = orders;
@@ -92,104 +92,105 @@ class _SalesScreenState extends State<SalesScreen>
   // 주문 상세 다이얼로그
   Future<void> _showOrderDetailDialog(Order order) async {
     await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-              title: Text('주문 #${order.id}'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('주문 #${order.id}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text('주문 시간: ${order.formattedOrderDate}'),
                 const SizedBox(height: 16),
                 const Text('주문 상품:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: order.items.length,
-                          itemBuilder: (context, index) {
-                            final item = order.items[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text('${item.productName} x${item.quantity}'),
-                                  ),
-                                  Text(item.formattedSubtotal),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('총 금액:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text(
-                            order.formattedTotalAmount,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: order.items.length,
+                    itemBuilder: (context, index) {
+                      final item = order.items[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text('${item.productName} x${item.quantity}'),
                             ),
-                          ),
-                        ],
+                            Text(item.formattedSubtotal),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('총 금액:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      order.formattedTotalAmount,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('주문 취소'),
+                    content: const Text('이 주문을 취소하시겠습니까?\n취소된 주문은 복구할 수 없습니다.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('아니오'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        child: const Text('예, 취소합니다'),
                       ),
                     ],
-                ),
-              ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('닫기'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('주문 취소'),
-                      content: const Text('이 주문을 취소하시겠습니까?\n취소된 주문은 복구할 수 없습니다.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('아니오'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: const Text('예, 취소합니다'),
-                        ),
-                      ],
-                    ),
-                  );
+                  ),
+                );
 
-                  if (confirmed == true) {
-                    final success = await _orderService.cancelOrder(order.id!);
-                    if (success) {
-                      Navigator.of(context).pop();
-                      _loadData();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('주문이 취소되었습니다')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('주문 취소에 실패했습니다')),
-                      );
-                    }
+                if (confirmed == true) {
+                  final success = await _platformService.cancelOrder(order.id!);
+                  if (success) {
+                    Navigator.of(context).pop();
+                    _loadData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('주문이 취소되었습니다')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('주문 취소에 실패했습니다')),
+                    );
                   }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('주문 취소'),
-              ),
-            ],
-          );
-        },
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('주문 취소'),
+            ),
+          ],
+        );
+      },
     );
   }
 

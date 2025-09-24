@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/product.dart';
 import '../models/category.dart';
-import '../services/product_service.dart';
-import '../services/category_service.dart';
+import '../services/platform_service.dart';
 
 class ProductManagementScreen extends StatefulWidget {
   const ProductManagementScreen({Key? key}) : super(key: key);
@@ -16,8 +15,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final ProductService _productService = ProductService();
-  final CategoryService _categoryService = CategoryService();
+  final PlatformService _platformService = PlatformService();
 
   List<Product> _products = [];
   List<Category> _categories = [];
@@ -43,8 +41,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
     });
 
     try {
-      final products = await _productService.getAllProducts();
-      final categories = await _categoryService.getAllCategories();
+      final products = await _platformService.getAllProducts();
+      final categories = await _platformService.getAllCategories();
 
       setState(() {
         _products = products;
@@ -171,13 +169,13 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                     bool success;
                     if (product == null) {
                       // 새 상품 추가
-                      final productId = await _productService.addProduct(
+                      final productId = await _platformService.addProduct(
                           name, price, selectedCategoryId
                       );
-                      success = productId != null;
+                      success = productId > 0;
                     } else {
                       // 기존 상품 수정
-                      success = await _productService.updateProduct(
+                      success = await _platformService.updateProduct(
                           product.id!, name, price, selectedCategoryId
                       );
                     }
@@ -244,11 +242,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                 bool success;
                 if (category == null) {
                   // 새 카테고리 추가
-                  final categoryId = await _categoryService.addCategory(name);
-                  success = categoryId != null;
+                  final categoryId = await _platformService.addCategory(name);
+                  success = categoryId > 0;
                 } else {
                   // 기존 카테고리 수정
-                  success = await _categoryService.updateCategory(category.id!, name);
+                  success = await _platformService.updateCategory(category.id!, name);
                 }
 
                 if (success) {
@@ -333,7 +331,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
               if (newIndex > oldIndex) newIndex--;
 
               final product = _products[oldIndex];
-              final success = await _productService.updateProductOrder(
+              final success = await _platformService.updateProductOrder(
                   product.id!,
                   newIndex + 1
               );
@@ -380,7 +378,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                           _showProductDialog(product: product);
                           break;
                         case 'toggle':
-                          final success = await _productService.toggleProductStatus(product.id!);
+                          final success = await _platformService.toggleProductStatus(product.id!);
                           if (success) {
                             _loadData();
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -391,7 +389,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                           }
                           break;
                         case 'delete':
-                          final success = await _productService.deleteProduct(product.id!);
+                          final success = await _platformService.deleteProduct(product.id!);
                           if (success) {
                             _loadData();
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -457,7 +455,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
               if (newIndex > oldIndex) newIndex--;
 
               final category = _categories[oldIndex];
-              final success = await _categoryService.updateCategoryOrder(
+              final success = await _platformService.updateCategoryOrder(
                   category.id!,
                   newIndex + 1
               );
@@ -484,7 +482,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                           _showCategoryDialog(category: category);
                           break;
                         case 'delete':
-                          final success = await _categoryService.deleteCategory(category.id!);
+                          final success = await _platformService.deleteCategory(category.id!);
                           if (success) {
                             _loadData();
                             ScaffoldMessenger.of(context).showSnackBar(

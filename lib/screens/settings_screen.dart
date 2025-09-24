@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
+import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -10,7 +11,44 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseService _dbService = DatabaseService();
+  final SettingsService _settingsService = SettingsService();
+
   bool _isLoading = false;
+  double _cardSize = 180.0;
+  double _cardAspectRatio = 1.2;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // 설정 불러오기
+  Future<void> _loadSettings() async {
+    final cardSize = await _settingsService.getCardSize();
+    final cardRatio = await _settingsService.getCardAspectRatio();
+
+    setState(() {
+      _cardSize = cardSize;
+      _cardAspectRatio = cardRatio;
+    });
+  }
+
+  // 카드 크기 변경
+  Future<void> _updateCardSize(double size) async {
+    await _settingsService.setCardSize(size);
+    setState(() {
+      _cardSize = size;
+    });
+  }
+
+  // 카드 비율 변경
+  Future<void> _updateCardAspectRatio(double ratio) async {
+    await _settingsService.setCardAspectRatio(ratio);
+    setState(() {
+      _cardAspectRatio = ratio;
+    });
+  }
 
   // 데이터베이스 초기화 (개발/테스트용)
   Future<void> _resetDatabase() async {
@@ -44,7 +82,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       try {
         await _dbService.resetDatabase();
-        await _dbService.database; // 새 데이터베이스 생성
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +150,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
         children: [
+          // UI 설정 섹션
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'UI 설정',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 카드 크기 조절
+                  const Text(
+                    '상품 카드 크기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '현재 크기: ${_cardSize.round()}px',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  Slider(
+                    value: _cardSize,
+                    min: 160.0, // 최솟값을 160으로 변경
+                    max: 300.0,
+                    divisions: 14, // (300-160)/10 = 14 구간으로 조정
+                    label: '${_cardSize.round()}px',
+                    onChanged: (value) {
+                      _updateCardSize(value);
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 카드 비율 조절
+                  const Text(
+                    '상품 카드 비율 (가로:세로)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '현재 비율: ${_cardAspectRatio.toStringAsFixed(1)}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  Slider(
+                    value: _cardAspectRatio,
+                    min: 0.6,
+                    max: 2.0,
+                    divisions: 14,
+                    label: _cardAspectRatio.toStringAsFixed(1),
+                    onChanged: (value) {
+                      _updateCardAspectRatio(value);
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 미리보기 카드
+                  const Text(
+                    '미리보기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: _cardSize,
+                      height: _cardSize / _cardAspectRatio,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_bag, size: 40),
+                          SizedBox(height: 8),
+                          Text(
+                            '상품명',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          Text('10,000원'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // 데이터 관리 섹션
           const Padding(
             padding: EdgeInsets.all(16.0),
