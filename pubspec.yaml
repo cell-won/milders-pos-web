@@ -1,0 +1,50 @@
+name: milders_pos
+description: 마일더스 포스 어플리케이션
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0  # 모바일용
+  path: ^1.8.3
+  # 웹에서 데이터 저장용 (localStorage 사용)
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+# 웹 파비콘 생성
+flutter_launcher_icons:
+  android: true
+  ios: false
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#000000"
+  image_path: "assets/icon/app_icon.png"
+
+# 웹 스플래시 활성화
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/icon/splash_center.png
+  web: true  # 웹 지원 활성화
+  web_image_mode: center
+  android_12:
+    image: assets/icon/splash_center.png
+    color: "#FFFFFF"
+    icon_background_color: "#FFFFFF"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
